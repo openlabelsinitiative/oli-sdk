@@ -1,6 +1,6 @@
 {
   "name": "@openlabels/oli-sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TypeScript/JavaScript SDK for querying Open Labels Initiative (OLI) address labels on-chain and off-chain",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
