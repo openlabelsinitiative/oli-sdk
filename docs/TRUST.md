@@ -1,12 +1,12 @@
 # Trust & Label Pool Primer
 
-The SDK is intentionally **read-only** and consumes the public Open Labels Initiative label pool. This document outlines what the helpers currently do (and do *not* do) so you can layer your own policies until the official trust algorithms land.
+The SDK is intentionally **read-only** and consumes the public Open Labels Initiative label pool. This document outlines what the helpers currently do (and do *not* do) so you can layer your own policies until the official trust algorithms through transitive trust land.
 
 ## Where the Data Comes From
 
 - **Tag definitions & schema**: Pulled directly from the `openlabelsinitiative/OLI` GitHub repository at runtime.
 - **Value sets**: Derived from those tag definitions, plus public JSON feeds such as `https://api.growthepie.com/v1/labels/projects.json`.
-- **Label pool**: Aggregated, open-sourced label exports are fetched from GrowThePie (`labels_raw.json`, `labels_decoded.json`) or the live REST API.
+- **Label pool**: Aggregated, open-sourced label exports are fetched from growthepie (`labels_raw.json`, `labels_decoded.json`) or the OLI's live REST API.
 
 Treat every record as **untrusted input** until you have applied your own validation, allow-lists, or human review.
 

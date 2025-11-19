@@ -2,7 +2,7 @@
 
 > Type-safe TypeScript/JavaScript client for reading the Open Labels Initiative (OLI) public label pool over REST.
 
-This package focuses exclusively on **read** scenarios: fetching labels, analytics, and helper summaries. All write helpers and GraphQL fallbacks have been removed so the surface area is small, predictable, and browser-friendly.
+This package focuses exclusively on **read** scenarios: fetching labels, analytics, and helper summaries. All write helpers have been removed so the surface area is small, predictable, and browser-friendly.
 
 ## ✨ Highlights
 
@@ -14,10 +14,12 @@ This package focuses exclusively on **read** scenarios: fetching labels, analyti
 
 ## ⚠️ Trust & Label Pool Disclaimer
 
-- The SDK reads from the **open OLI label pool** (currently mirrored through public GitHub exports and the GrowThePie API). All records are community-generated and **should be considered untrusted data** until weighted by your own allow-lists.
+- The SDK reads from the **open OLI label pool** (currently mirrored through, OLI's Live REST API, public GitHub exports and the growthepie API for projects metadata). All records are community-generated and **should be considered untrusted data** until weighted by your own allow-lists. 
 - `oli.api.getBestLabelForAddress()` is intentionally simple: it removes revoked/expired labels, applies your optional filters, sorts by recency, and returns the first hit. There is **no attester weighting or trust scoring** yet.
 - `oli.api.getValidLabelsForAddress()` / `helpers.isLabelValid()` only check revocation + expiration. **“Valid” does not mean “verified” or “safe.”**
-- Trust algorithms (attester weighting, consensus scoring, label provenance checks) are **not implemented yet**. Keep humans-in-the-loop or apply your own policy layer before surfacing data to end users or triggering automated flows. See [`docs/TRUST.md`](docs/TRUST.md) for more context.
+- Trust algorithms (attester weighting, consensus scoring, label provenance checks) are **not implemented yet** but will be there soon as its development is almost complete. Keep humans-in-the-loop or apply your own policy layer before surfacing data to end users or triggering automated flows. See [`docs/TRUST.md`](docs/TRUST.md) for more context.
+
+
 
 
 ```bash
@@ -58,6 +60,19 @@ await oli.init(); // pulls latest tag definitions & value sets
 | `filters.allowedCategories / excludedCategories / allowedProjects` | Include/exclude categories or projects globally. |
 | `filters.minAge / maxAge` | Filter labels by age (seconds). |
 | `display.nameFields / addressFormat / dateFormat` | Customize formatting defaults for helper outputs. |
+
+## 🔐 Getting an API Key
+
+To use protected endpoints in the SDK, you'll need an API key.
+
+1. Go to the [Open Labels developer portal](https://www.openlabelsinitiative.org/developer) and click **Sign in**.
+2. Approve the short GitHub OAuth authorization.
+3. Complete the registration form with your contact email, project name, and intended use—this quick step helps prevent spam and usually takes less than a minute.
+4. After submitting, your API key will be generated instantly (displayed in the portal, ONLY ONCE).
+5. Safely store your API key in your secrets manager or in a `.env` file (e.g., `OLI_API_KEY=...`). Then, provide it to the SDK via `api.apiKey` or use the proxy helper for browser apps.
+
+> **Need full API endpoint documentation or want to explore more details?**  
+> Check out the API reference at [OLI's API Reference](https://www.openlabelsinitiative.org/docs?section=api-reference).
 
 ## 🚀 Quick Start
 
