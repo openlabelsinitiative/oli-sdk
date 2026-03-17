@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-17
+
 ### Added
 
 #### Contributions — deterministic branch naming (Problem 1)
@@ -105,7 +107,8 @@ This is the first release of the refreshed `@openlabels/oli-sdk` package and ser
 - Documentation disclaimer describing how the public label pool, `getBestLabelForAddress`, and `getValidLabelsForAddress` should be treated until the upcoming trust algorithms land.
 
 
-[Unreleased]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/openlabelsinitiative/oli-sdk/releases/tag/v0.1.0
