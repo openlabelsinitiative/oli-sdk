@@ -1,4 +1,7 @@
 export type {
+  CommitFileInput,
+  CommitFilesToBranchInput,
+  CommitFilesToBranchResult,
   ContributionBranchOptions,
   EditProjectInput,
   EditProjectPatch,
@@ -47,6 +50,7 @@ export {
 export { validateProjectPayload } from './validator';
 
 export {
+  commitFilesToBranch,
   createGitHubPullRequestClient,
   GitHubPullRequestClient
 } from './github';

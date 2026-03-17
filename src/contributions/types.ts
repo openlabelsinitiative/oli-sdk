@@ -335,3 +335,25 @@ export interface SubmitProjectContributionResult {
   yaml: SubmittedProjectYamlResult;
   logo: SubmittedProjectLogoResult | null;
 }
+
+export interface CommitFileInput {
+  filePath: string;
+  fileContent: string | Uint8Array;
+  /** When true, deletes sibling files with the same slug prefix but a different extension. */
+  deleteOtherExtensions?: boolean;
+  /** Required when deleteOtherExtensions is true — used to match the slug prefix. */
+  slug?: string;
+}
+
+export interface CommitFilesToBranchInput {
+  auth: GitHubTokenConfig;
+  owner: string;
+  repo: string;
+  branch: string;
+  files: CommitFileInput[];
+  commitMessage: string;
+}
+
+export interface CommitFilesToBranchResult {
+  commitSha: string | null;
+}

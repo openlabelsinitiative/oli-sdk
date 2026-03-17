@@ -1,4 +1,7 @@
 import {
+  CommitFileInput,
+  CommitFilesToBranchInput,
+  CommitFilesToBranchResult,
   GitHubFileChangeRequest,
   GitHubPullRequestResult,
   GitHubRepositoryRef,
@@ -723,6 +726,58 @@ export class GitHubPullRequestClient implements PullRequestClient {
       commitSha
     };
   }
+
+  async commitFiles(
+    owner: string,
+    repo: string,
+    branch: string,
+    files: CommitFileInput[],
+    commitMessage: string
+  ): Promise<CommitFilesToBranchResult> {
+    const token = await resolveToken(this.auth);
+    let lastCommitSha: string | null = null;
+
+    for (const file of files) {
+      const contentBase64 = bytesToBase64(toUint8Array(file.fileContent));
+      const commitSha = await this.upsertFile(
+        token,
+        owner,
+        repo,
+        branch,
+        file.filePath,
+        contentBase64,
+        commitMessage
+      );
+      if (commitSha !== null) {
+        lastCommitSha = commitSha;
+      }
+
+      if (file.deleteOtherExtensions && file.slug) {
+        const lastSlash = file.filePath.lastIndexOf('/');
+        const dir = lastSlash >= 0 ? file.filePath.slice(0, lastSlash) : '.';
+        const filename = lastSlash >= 0 ? file.filePath.slice(lastSlash + 1) : file.filePath;
+        const dotIndex = filename.lastIndexOf('.');
+        const currentExt = dotIndex > 0 ? filename.slice(dotIndex + 1).toLowerCase() : '';
+        const slug = file.slug;
+
+        const items = await this.listDirectory(token, owner, repo, dir, branch);
+        for (const item of items) {
+          if (item.type !== 'file') continue;
+          if (!item.name.startsWith(`${slug}.`)) continue;
+          const itemExt = item.name.slice(slug.length + 1).toLowerCase();
+          if (itemExt === currentExt) continue;
+
+          await this.deleteFileOnBranch(
+            token, owner, repo,
+            item.path, item.sha, branch,
+            `chore: remove ${item.name} (replaced by ${filename})`
+          );
+        }
+      }
+    }
+
+    return { commitSha: lastCommitSha };
+  }
 }
 
 export function createGitHubPullRequestClient(
@@ -730,4 +785,17 @@ export function createGitHubPullRequestClient(
   fetchImpl?: FetchLike
 ): GitHubPullRequestClient {
   return new GitHubPullRequestClient(auth, fetchImpl);
+}
+
+export async function commitFilesToBranch(
+  input: CommitFilesToBranchInput
+): Promise<CommitFilesToBranchResult> {
+  const client = new GitHubPullRequestClient(input.auth);
+  return client.commitFiles(
+    input.owner,
+    input.repo,
+    input.branch,
+    input.files,
+    input.commitMessage
+  );
 }
