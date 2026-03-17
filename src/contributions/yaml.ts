@@ -340,19 +340,19 @@ export function patchProjectYamlText(
     projectPatch.displayName = patch.displayName;
   }
 
-  if ('description' in patch) {
+  if (patch.description !== undefined) {
     projectPatch.description = patch.description ?? null;
   }
 
-  if ('websites' in patch) {
+  if (patch.websites !== undefined) {
     projectPatch.websites = patch.websites?.length ? patch.websites : null;
   }
 
-  if ('github' in patch) {
+  if (patch.github !== undefined) {
     projectPatch.github = patch.github?.length ? patch.github : null;
   }
 
-  if ('twitter' in patch || 'telegram' in patch) {
+  if (patch.twitter !== undefined || patch.telegram !== undefined) {
     // Merge with existing social so other platforms are preserved.
     const mergedSocial: Record<string, string[]> = {};
 
@@ -373,7 +373,7 @@ export function patchProjectYamlText(
       });
     }
 
-    if ('twitter' in patch) {
+    if (patch.twitter !== undefined) {
       if (patch.twitter) {
         mergedSocial['twitter'] = [patch.twitter];
       } else {
@@ -381,7 +381,7 @@ export function patchProjectYamlText(
       }
     }
 
-    if ('telegram' in patch) {
+    if (patch.telegram !== undefined) {
       if (patch.telegram) {
         mergedSocial['telegram'] = [patch.telegram];
       } else {

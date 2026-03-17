@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-03-17
+
+### Fixed
+- **`patchProjectYamlText`** — optional field guards changed from `'key' in patch` to `patch.key !== undefined` for `description`, `websites`, `github`, `twitter`, and `telegram`. This makes all fields consistent with `displayName` and correctly treats `undefined` as "not provided / leave unchanged" while `null` still means "explicitly remove".
+
 ## [0.2.2] - 2026-03-17
 
 ### Fixed
@@ -113,7 +118,8 @@ This is the first release of the refreshed `@openlabels/oli-sdk` package and ser
 - Documentation disclaimer describing how the public label pool, `getBestLabelForAddress`, and `getValidLabelsForAddress` should be treated until the upcoming trust algorithms land.
 
 
-[Unreleased]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.1.1...v0.2.0
