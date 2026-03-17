@@ -1,9 +1,10 @@
-import type { AttestationRowInput, CsvParseResult, ParseCsvOptions } from '../types';
+import type { AttestationRowInput, CsvParseResult, ParseCsvOptions, UsageCategoryRegistry } from '../types';
 import { FORM_FIELDS, REQUIRED_FIELD_IDS } from '../core/formFields';
 import { VALID_CATEGORY_IDS } from '../core/categories';
 import { parseCaip10 } from '../core/caip';
 import { convertChainId } from './chain';
-import { convertCategoryAlias, getSmartCategorySuggestions } from './category';
+import { convertCategoryAlias } from './category';
+import { getUsageCategorySuggestions } from './usageCategoryRegistry';
 import { convertPaymasterAlias, getSmartPaymasterSuggestions, VALID_PAYMASTER_CATEGORIES } from './paymaster';
 import { getProjectValidation, resolveProjectsList } from './project';
 import { createDiagnostics, addConversion, addError, addWarning, addSuggestion } from './diagnostics';
@@ -122,6 +123,7 @@ function normalizeAllowedFields(allowedFields: string[] | undefined): Set<string
 export async function parseCsv(csvText: string, options: ParseCsvOptions = {}): Promise<CsvParseResult> {
   const diagnostics = createDiagnostics();
   const allowedFields = normalizeAllowedFields(options.allowedFields);
+  const registry: UsageCategoryRegistry | undefined = options.usageCategoryRegistry;
   const lines = csvText.split('\n').map((line) => line.trim());
 
   if (lines.length < 2 || lines.slice(1).every((line) => !line)) {
@@ -325,8 +327,11 @@ export async function parseCsv(csvText: string, options: ParseCsvOptions = {}): 
     }
 
     const categoryValue = typeof row.usage_category === 'string' ? row.usage_category : '';
-    if (categoryValue && !VALID_CATEGORY_IDS.includes(categoryValue)) {
-      const suggestions = getSmartCategorySuggestions(categoryValue);
+    const categoryIsValid = registry
+      ? registry.allowedIds.has(categoryValue)
+      : VALID_CATEGORY_IDS.includes(categoryValue);
+    if (categoryValue && !categoryIsValid) {
+      const suggestions = getUsageCategorySuggestions(categoryValue, registry);
       if (suggestions.length > 0) {
         addSuggestion(
           diagnostics,

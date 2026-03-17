@@ -4,6 +4,7 @@ import type {
   BulkValidationResult,
   ProjectRecord,
   SingleValidationResult,
+  UsageCategoryRegistry,
   ValidationOptions
 } from '../types';
 import { FORM_FIELDS, REQUIRED_FIELD_IDS } from '../core/formFields';
@@ -21,7 +22,8 @@ import {
   validateTxHash,
   validateURL
 } from './fieldValidators';
-import { convertCategoryAlias, getSmartCategorySuggestions } from './category';
+import { convertCategoryAlias } from './category';
+import { getUsageCategorySuggestions } from './usageCategoryRegistry';
 import { convertPaymasterAlias, getSmartPaymasterSuggestions, VALID_PAYMASTER_CATEGORIES } from './paymaster';
 import { getProjectValidation, resolveProjectsList } from './project';
 
@@ -164,20 +166,22 @@ async function validateProject(
 function validateCategoryFieldValue(
   row: AttestationRowInput,
   diagnostics: AttestationDiagnostics,
-  rowIndex?: number
+  rowIndex?: number,
+  registry?: UsageCategoryRegistry
 ): void {
   const value = typeof row.usage_category === 'string' ? row.usage_category : '';
   if (!value) {
     return;
   }
 
-  const validationError = validateCategory(value);
+  const validationError = validateCategory(value, registry);
   if (!validationError) {
     return;
   }
 
   const converted = convertCategoryAlias(value);
-  if (converted !== value && !validateCategory(converted)) {
+  // Only suggest the alias if its target is valid within the (possibly filtered) registry
+  if (converted !== value && !validateCategory(converted, registry)) {
     addConversion(
       diagnostics,
       'CATEGORY_ALIAS_SUGGESTION',
@@ -203,18 +207,21 @@ function validateCategoryFieldValue(
     return;
   }
 
-  const suggestions = getSmartCategorySuggestions(value);
-  const suggestionList = suggestions.length > 0 ? suggestions : ['other'];
+  const suggestions = getUsageCategorySuggestions(value, registry);
+  // Fall back to 'other' only when no registry is active (static mode)
+  const suggestionList = suggestions.length > 0 ? suggestions : (registry ? [] : ['other']);
   addError(diagnostics, 'CATEGORY_INVALID', validationError, {
     row: rowIndex,
     field: 'usage_category',
     suggestions: suggestionList
   });
-  addSuggestion(diagnostics, 'CATEGORY_SUGGESTIONS', `Invalid category: "${value}".`, {
-    row: rowIndex,
-    field: 'usage_category',
-    suggestions: suggestionList
-  });
+  if (suggestionList.length > 0) {
+    addSuggestion(diagnostics, 'CATEGORY_SUGGESTIONS', `Invalid category: "${value}".`, {
+      row: rowIndex,
+      field: 'usage_category',
+      suggestions: suggestionList
+    });
+  }
 }
 
 function validatePaymasterFieldValue(
@@ -350,10 +357,11 @@ async function validateRow(
     projects: ProjectRecord[];
     allowedFields: Set<string> | null;
     rowIndex?: number;
+    registry?: UsageCategoryRegistry;
   }
 ): Promise<AttestationRowInput> {
   const row = sanitizeRowByAllowedFields(cloneRow(rowInput), options.allowedFields);
-  const { mode, projects, rowIndex } = options;
+  const { mode, projects, rowIndex, registry } = options;
 
   applyCaipNormalization(row, diagnostics, rowIndex);
 
@@ -387,7 +395,7 @@ async function validateRow(
   });
 
   await validateProject(row, diagnostics, projects, rowIndex);
-  validateCategoryFieldValue(row, diagnostics, rowIndex);
+  validateCategoryFieldValue(row, diagnostics, rowIndex, registry);
   validatePaymasterFieldValue(row, diagnostics, rowIndex);
 
   return row;
@@ -402,7 +410,8 @@ export async function validateSingle(input: AttestationRowInput, options: Valida
   const row = await validateRow(input, diagnostics, {
     mode,
     projects,
-    allowedFields
+    allowedFields,
+    registry: options.usageCategoryRegistry
   });
 
   return {
@@ -425,6 +434,7 @@ export async function validateBulk(rows: AttestationRowInput[], options: Validat
   const mode = resolveModeProfile(options.mode);
   const projects = await resolveProjectsList({ projects: options.projects, fetchProjects: options.fetchProjects });
   const allowedFields = normalizeAllowedFields(options.allowedFields);
+  const registry = options.usageCategoryRegistry;
 
   if (!Array.isArray(rows) || rows.length === 0) {
     addError(diagnostics, 'BULK_EMPTY', 'At least one row is required for bulk attestation.');
@@ -454,7 +464,8 @@ export async function validateBulk(rows: AttestationRowInput[], options: Validat
       mode,
       projects,
       allowedFields,
-      rowIndex: index
+      rowIndex: index,
+      registry
     });
 
     normalizedRows.push(normalizedRow);

@@ -1,3 +1,21 @@
+export interface UsageCategoryRecord {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface UsageCategoryRegistry {
+  /** All categories returned by the remote source. */
+  all: UsageCategoryRecord[];
+  /**
+   * Subset of `all` that this registry considers valid.
+   * Equals `all` when no `allowedIds` / `filter` was applied.
+   */
+  allowed: UsageCategoryRecord[];
+  /** O(1) membership set for the `allowed` subset. */
+  allowedIds: Set<string>;
+}
+
 export type AttestationPrimitive = string | number | boolean;
 export type AttestationFieldValue = AttestationPrimitive | AttestationPrimitive[] | null | undefined;
 
@@ -33,6 +51,12 @@ export interface ValidationOptions {
   fetchProjects?: () => Promise<ProjectRecord[]>;
   maxRows?: number;
   allowedFields?: string[];
+  /**
+   * When provided, all `usage_category` validation and suggestions are scoped
+   * to this registry instead of the SDK's static built-in list.
+   * Build one with `createUsageCategoryRegistry()` from `@openlabels/oli-sdk/chains`.
+   */
+  usageCategoryRegistry?: UsageCategoryRegistry;
 }
 
 export interface PrepareSingleOptions {
@@ -49,6 +73,8 @@ export interface ParseCsvOptions {
   projects?: ProjectRecord[];
   fetchProjects?: () => Promise<ProjectRecord[]>;
   allowedFields?: string[];
+  /** Registry used to scope `usage_category` validation within the CSV pipeline. */
+  usageCategoryRegistry?: UsageCategoryRegistry;
 }
 
 export interface AttestationDiagnostic {

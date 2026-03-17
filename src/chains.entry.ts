@@ -27,3 +27,13 @@ export type { Category, MainCategory } from './attest/core/categories';
 
 // Category alias conversion (from validation layer)
 export { convertCategoryAlias } from './attest/validation/category';
+
+// Dynamic usage-category registry
+export {
+  DEFAULT_USAGE_CATEGORY_SOURCE,
+  fetchUsageCategories,
+  createUsageCategoryRegistry,
+  validateUsageCategory,
+  getUsageCategorySuggestions
+} from './attest/validation/usageCategoryRegistry';
+export type { UsageCategoryRecord, UsageCategoryRegistry } from './attest/types';

@@ -148,7 +148,7 @@ function defaultLogoPullRequestBody(
 function normalizeGitHubFileRequest(
   request: Omit<
     GitHubFileChangeRequest,
-    'targetOwner' | 'autoCreateFork' | 'branchPrefix'
+    'targetOwner' | 'autoCreateFork' | 'branchName' | 'branchPrefix'
   >,
   input: SubmitProjectContributionInput
 ): GitHubFileChangeRequest {
@@ -156,7 +156,8 @@ function normalizeGitHubFileRequest(
     ...request,
     targetOwner: input.targetOwner,
     autoCreateFork: input.autoCreateFork,
-    branchPrefix: input.branchPrefix
+    branchName: input.branch?.branchName,
+    branchPrefix: input.branch?.branchPrefix || input.branchPrefix
   };
 }
 
@@ -287,6 +288,7 @@ export async function submitProjectContribution(
           filePath: logoFilePath,
           fileContent: logoBytes,
           fileContentEncoding: 'utf8',
+          deleteOtherExtensions: input.logo.replaceVariants === true,
           commitMessage:
             input.logo.commitMessage ||
             defaultLogoPullRequestTitle(logoMode, displayName, logoSlug),

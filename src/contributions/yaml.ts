@@ -1,6 +1,7 @@
 import yaml from 'js-yaml';
 import {
   DEFAULT_PROJECT_VERSION,
+  EditProjectPatch,
   PROJECT_URL_FIELDS,
   ProjectDraftInput,
   ProjectPatchInput,
@@ -311,6 +312,88 @@ export function applyProjectPatchToPayload(
   }
 
   return reorderProjectPayload(payload);
+}
+
+/**
+ * Apply an `EditProjectPatch` to an existing YAML text string.
+ *
+ * Implements a two-pass approach:
+ *  - Pass 1: parse the existing YAML, apply only the specified patch fields
+ *    (all unmentioned fields are preserved unchanged).
+ *  - Pass 2: re-serialize with canonical key ordering via `serializeProjectYaml`.
+ *
+ * `social.twitter` and `social.telegram` are merged with the existing social
+ * object so that other platforms (farcaster, discord, etc.) are preserved.
+ *
+ * @param existingYamlText - Current YAML file contents.
+ * @param patch - Fields to update.
+ * @returns Updated YAML string.
+ */
+export function patchProjectYamlText(
+  existingYamlText: string,
+  patch: EditProjectPatch
+): string {
+  const basePayload = parseProjectYaml(existingYamlText);
+  const projectPatch: ProjectPatchInput = {};
+
+  if (patch.displayName !== undefined) {
+    projectPatch.displayName = patch.displayName;
+  }
+
+  if ('description' in patch) {
+    projectPatch.description = patch.description ?? null;
+  }
+
+  if ('websites' in patch) {
+    projectPatch.websites = patch.websites?.length ? patch.websites : null;
+  }
+
+  if ('github' in patch) {
+    projectPatch.github = patch.github?.length ? patch.github : null;
+  }
+
+  if ('twitter' in patch || 'telegram' in patch) {
+    // Merge with existing social so other platforms are preserved.
+    const mergedSocial: Record<string, string[]> = {};
+
+    if (basePayload.social) {
+      Object.entries(basePayload.social).forEach(([platform, entries]) => {
+        if (Array.isArray(entries)) {
+          const urls = entries
+            .map((e) =>
+              e && typeof e === 'object'
+                ? (e as ProjectUrlEntry).url
+                : String(e)
+            )
+            .filter(Boolean);
+          if (urls.length > 0) {
+            mergedSocial[platform] = urls;
+          }
+        }
+      });
+    }
+
+    if ('twitter' in patch) {
+      if (patch.twitter) {
+        mergedSocial['twitter'] = [patch.twitter];
+      } else {
+        delete mergedSocial['twitter'];
+      }
+    }
+
+    if ('telegram' in patch) {
+      if (patch.telegram) {
+        mergedSocial['telegram'] = [patch.telegram];
+      } else {
+        delete mergedSocial['telegram'];
+      }
+    }
+
+    projectPatch.social = Object.keys(mergedSocial).length > 0 ? mergedSocial : null;
+  }
+
+  const patchedPayload = applyProjectPatchToPayload(basePayload, projectPatch);
+  return serializeProjectYaml(patchedPayload);
 }
 
 export function parseProjectYaml(yamlText: string): ProjectYamlPayload {

@@ -5,6 +5,46 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+#### Contributions — deterministic branch naming (Problem 1)
+- **`ContributionBranchOptions`** type (`{ branchName?, branchPrefix? }`). Added to `EditProjectInput.branch` and `SubmitProjectContributionInput.branch`.
+- **`GitHubFileChangeRequest.branchName`** — when provided, `GitHubPullRequestClient` tries that exact name first, then appends `-2`, `-3` … up to 10 attempts on 422 collisions. Legacy timestamp/random behavior is preserved when `branchName` is absent.
+- `SubmitProjectContributionInput.branchPrefix` is now `@deprecated` in favour of `branch.branchPrefix`.
+
+#### Contributions — first-class YAML edit support (Problem 2)
+- **`patchProjectYamlText(existingYamlText, patch)`** — two-pass edit helper in `yaml.ts`. Pass 1 applies only the specified `EditProjectPatch` fields via `applyProjectPatchToPayload` (all unmentioned fields are preserved). Pass 2 re-serializes with canonical key ordering. `social.twitter` and `social.telegram` are merged into the existing `social` map so other platforms (farcaster, discord, etc.) are preserved.
+- **`EditProjectPatch`** type — typed subset of editable fields: `displayName`, `description`, `websites`, `github`, `twitter`, `telegram`.
+- **`EditProjectInput`** type — full input type for `submitProjectEditContribution`.
+- **`SubmitProjectEditContributionResult`** type.
+- **`fetchExistingProjectYaml(auth, slug, options?)`** — fetches the current YAML text and blob SHA for a slug from GitHub using the canonical `ensureProjectFilePath(slug)` path. Returns `null` when the file doesn't exist.
+- **`submitProjectEditContribution(input)`** — high-level edit flow: fetch → patch → open PR. Uses `ensureProjectFilePath` internally so frontends don't duplicate path logic.
+
+#### Contributions — canonical path resolver (Problem 3)
+- `ensureProjectFilePath(slug)` is now used by both `submitProjectContribution` and `submitProjectEditContribution`. Re-exported from `edit.ts` for consumers who need the resolver standalone.
+
+#### Contributions — logo variant replacement (Problem 4)
+- **`ProjectLogoContribution.replaceVariants`** (`boolean`) — when `true`, deletes sibling files in the same directory on the branch whose filename matches `<slug>.*` but has a different extension (e.g. writing `avon.png` deletes `avon.svg`).
+- **`GitHubFileChangeRequest.deleteOtherExtensions`** (`boolean`) — lower-level flag that drives the same cleanup inside `GitHubPullRequestClient.createOrUpdatePullRequest`.
+- **`GitHubPullRequestClient.fetchFileContents(owner, repo, filePath, ref?)`** — new public method; returns `{ content: string; sha: string } | null`. Used internally by `submitProjectEditContribution` and available to consumers who need to read a file before editing.
+
+#### Usage-category registry — dynamic validation (Problem 5)
+- **`UsageCategoryRecord`** type (`{ id, name, description? }`).
+- **`UsageCategoryRegistry`** type (`{ all, allowed, allowedIds: Set<string> }`).
+- **`DEFAULT_USAGE_CATEGORY_SOURCE`** — canonical OLI GitHub raw URL for `usage_category.yml`.
+- **`fetchUsageCategories(input?)`** — fetches and parses the OLI usage-category YAML with an in-process TTL cache (default 300 s). Accepts `sourceUrl`, `fetchImpl`, `revalidateSeconds`.
+- **`createUsageCategoryRegistry(input?)`** — builds a `UsageCategoryRegistry` with optional `allowedIds` list and/or `filter` predicate. Host apps can scope the registry to only the IDs they support.
+- **`validateUsageCategory(value, registry?)`** — registry-aware replacement for `validateCategory`. Falls back to the SDK's static list when no registry is provided.
+- **`getUsageCategorySuggestions(value, registry?)`** — registry-aware suggestion engine (same multi-strategy scoring as the existing internal helper). Suggestions are always scoped to `registry.allowed` when a registry is provided.
+- **`ValidationOptions.usageCategoryRegistry`** — when set, all `usage_category` validation, alias suggestions, and error suggestions inside `validateSingle` / `validateBulk` are scoped to the registry.
+- **`ParseCsvOptions.usageCategoryRegistry`** — same scoping for the CSV parsing pipeline.
+- **`validateCategory(value, registry?)`** in `fieldValidators.ts` now accepts an optional registry.
+
+### Exports
+- `@openlabels/oli-sdk/chains` now exports: `fetchUsageCategories`, `createUsageCategoryRegistry`, `validateUsageCategory`, `getUsageCategorySuggestions`, `DEFAULT_USAGE_CATEGORY_SOURCE`, `UsageCategoryRecord` (type), `UsageCategoryRegistry` (type).
+- `@openlabels/oli-sdk/validation` now exports: `validateUsageCategory`, `getUsageCategorySuggestions`.
+- `@openlabels/oli-sdk/contributions` now exports: `ContributionBranchOptions`, `EditProjectPatch`, `EditProjectInput`, `SubmitProjectEditContributionResult`, `patchProjectYamlText`, `fetchExistingProjectYaml`, `submitProjectEditContribution`.
+
 
 ## [0.2.0] - 2026-02-27
 

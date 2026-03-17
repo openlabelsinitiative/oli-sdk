@@ -1,4 +1,7 @@
 export type {
+  ContributionBranchOptions,
+  EditProjectInput,
+  EditProjectPatch,
   GitHubFileChangeRequest,
   GitHubPullRequestResult,
   GitHubRepositoryRef,
@@ -19,6 +22,7 @@ export type {
   PullRequestClient,
   SubmitProjectContributionInput,
   SubmitProjectContributionResult,
+  SubmitProjectEditContributionResult,
   SubmittedProjectLogoResult,
   SubmittedProjectYamlResult,
   ValidateProjectPayloadOptions
@@ -35,6 +39,7 @@ export {
   ensureProjectFilePath,
   normalizeProjectSlug,
   parseProjectYaml,
+  patchProjectYamlText,
   reorderProjectPayload,
   serializeProjectYaml
 } from './yaml';
@@ -51,3 +56,8 @@ export {
   inferLogoExtension,
   submitProjectContribution
 } from './submit';
+
+export {
+  fetchExistingProjectYaml,
+  submitProjectEditContribution
+} from './edit';

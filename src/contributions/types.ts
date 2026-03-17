@@ -125,6 +125,12 @@ export interface GitHubFileChangeRequest {
   upstream: GitHubRepositoryRef;
   targetOwner?: string;
   autoCreateFork?: boolean;
+  /**
+   * Deterministic branch name. On collision appends -2, -3, etc.
+   * Takes precedence over `branchPrefix` when provided.
+   */
+  branchName?: string;
+  /** Legacy: timestamp/random-based branch prefix. Only used if `branchName` is absent. */
   branchPrefix?: string;
   sourceBaseBranch?: string;
   filePath: string;
@@ -133,6 +139,12 @@ export interface GitHubFileChangeRequest {
   commitMessage: string;
   pullRequestTitle: string;
   pullRequestBody: string;
+  /**
+   * When true, after writing the file delete sibling files in the same directory
+   * whose name starts with the same slug prefix but has a different extension.
+   * Useful for logo replacement (e.g. avon.png replaces avon.svg).
+   */
+  deleteOtherExtensions?: boolean;
 }
 
 export interface GitHubPullRequestResult {
@@ -176,11 +188,89 @@ export interface ProjectLogoContribution {
   commitMessage?: string;
   pullRequestTitle?: string;
   pullRequestBody?: string;
+  /**
+   * When true, deletes sibling logo files with other extensions in the same
+   * directory on the branch (e.g. writing avon.png deletes avon.svg).
+   */
+  replaceVariants?: boolean;
 }
 
 export interface ProjectContributionRepositories {
   projects: GitHubRepositoryRef;
   logos: GitHubRepositoryRef;
+}
+
+/**
+ * Branch naming options for contribution pull requests.
+ *
+ * - `branchName`: deterministic name; on collision appends -2, -3, etc.
+ * - `branchPrefix`: legacy timestamp/random prefix (used only when `branchName` is absent).
+ */
+export interface ContributionBranchOptions {
+  branchName?: string;
+  branchPrefix?: string;
+}
+
+/**
+ * Fields that can be patched in `submitProjectEditContribution`.
+ * Only the fields explicitly provided are updated; all others are preserved
+ * from the existing project YAML.
+ */
+export interface EditProjectPatch {
+  /** Updated display name (required). */
+  displayName: string;
+  /** Updated description. Pass `null` to remove. */
+  description?: string | null;
+  /** Updated website URLs. Pass `null` or empty array to remove. */
+  websites?: string[] | null;
+  /** Updated GitHub URLs. Pass `null` or empty array to remove. */
+  github?: string[] | null;
+  /** Updated Twitter handle/URL. Pass `null` to remove. */
+  twitter?: string | null;
+  /** Updated Telegram handle/URL. Pass `null` to remove. */
+  telegram?: string | null;
+}
+
+/**
+ * Input for `submitProjectEditContribution`. Fetches the existing project YAML,
+ * applies the patch, and opens a pull request with the updated file.
+ */
+export interface EditProjectInput {
+  /** GitHub authentication config. */
+  auth: GitHubTokenConfig;
+  /**
+   * Override the default target repositories.
+   * Defaults to `opensource-observer/oss-directory` (YAML) and
+   * `growthepie/gtp-dna` (logos).
+   */
+  repositories?: Partial<ProjectContributionRepositories>;
+  /** Project slug — used to resolve `data/projects/<c>/<slug>.yaml`. */
+  slug: string;
+  /** Fields to update. All other fields are preserved from the existing file. */
+  patch: EditProjectPatch;
+  /** Branch naming options. Defaults to timestamp/random when omitted. */
+  branch?: ContributionBranchOptions;
+  /** GitHub username/org to open the PR from (fork owner). */
+  targetOwner?: string;
+  /** When `true`, auto-fork the upstream repo if the actor doesn't have one. */
+  autoCreateFork?: boolean;
+  /** Human-readable label included in the default PR body. */
+  actorLabel?: string;
+  /** Optional logo to update alongside the YAML. */
+  logo?: ProjectLogoContribution;
+  /**
+   * When `false`, skip YAML validation before submission. Defaults to `true`.
+   */
+  validateYaml?: boolean;
+  /** Existing project list used for duplicate-name validation. */
+  existingProjects?: ProjectYamlPayload[];
+}
+
+export interface SubmitProjectEditContributionResult {
+  yamlText: string;
+  filePath: string;
+  pullRequest: GitHubPullRequestResult;
+  logo: SubmittedProjectLogoResult | null;
 }
 
 /**
@@ -210,7 +300,9 @@ export interface SubmitProjectContributionInput {
    * authenticated user does not already have a fork.
    */
   autoCreateFork?: boolean;
-  /** Branch name prefix. Defaults to `'oli-sdk/'`. */
+  /** Branch naming options. `branchName` takes precedence over `branchPrefix`. */
+  branch?: ContributionBranchOptions;
+  /** @deprecated Use `branch.branchPrefix` instead. */
   branchPrefix?: string;
   /**
    * When `false`, skip YAML payload validation before submission.

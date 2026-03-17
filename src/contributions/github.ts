@@ -27,6 +27,20 @@ type GitHubPutContentResponse = {
   };
 };
 
+type GitHubFileContentResponse = {
+  sha?: string;
+  content?: string;
+  encoding?: string;
+  type?: string;
+};
+
+type GitHubContentItem = {
+  name: string;
+  path: string;
+  sha: string;
+  type: string;
+};
+
 type GitHubPullResponse = {
   number?: number;
   html_url?: string;
@@ -84,6 +98,22 @@ function toUint8Array(content: string | Uint8Array): Uint8Array {
     return new TextEncoder().encode(content);
   }
   return content;
+}
+
+function base64ToString(base64: string): string {
+  const clean = base64.replace(/\s/g, '');
+  const maybeBuffer = (
+    globalThis as { Buffer?: { from: (data: string, encoding: string) => Uint8Array } }
+  ).Buffer;
+  if (maybeBuffer) {
+    return new TextDecoder().decode(maybeBuffer.from(clean, 'base64'));
+  }
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -258,9 +288,46 @@ export class GitHubPullRequestClient implements PullRequestClient {
     owner: string,
     repo: string,
     baseSha: string,
-    branchPrefix?: string
+    options?: { branchPrefix?: string; branchName?: string }
   ): Promise<string> {
-    const prefix = normalizeBranchPrefix(branchPrefix);
+    const requestedName = options?.branchName?.trim();
+
+    if (requestedName) {
+      // Deterministic naming: oli-contrib-avon, oli-contrib-avon-2, …
+      for (let attempt = 1; attempt <= 10; attempt += 1) {
+        const candidateName = attempt === 1 ? requestedName : `${requestedName}-${attempt}`;
+        const response = await this.githubFetch(
+          token,
+          `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ref: `refs/heads/${candidateName}`,
+              sha: baseSha
+            })
+          }
+        );
+
+        if (response.ok) {
+          return candidateName;
+        }
+
+        if (response.status === 422) {
+          continue;
+        }
+
+        const body = await this.readErrorBody(response);
+        throw new Error(
+          `Failed to create branch ${candidateName}: HTTP ${response.status} ${body}`
+        );
+      }
+
+      throw new Error(`Could not create a unique branch name for '${requestedName}'.`);
+    }
+
+    // Legacy: timestamp/random behavior
+    const prefix = normalizeBranchPrefix(options?.branchPrefix);
     const baseName = `${prefix}/${nowStamp()}-${randomToken()}`;
     let branchName = baseName;
 
@@ -373,6 +440,56 @@ export class GitHubPullRequestClient implements PullRequestClient {
     return json.commit?.sha || null;
   }
 
+  private async listDirectory(
+    token: string,
+    owner: string,
+    repo: string,
+    dirPath: string,
+    ref?: string
+  ): Promise<GitHubContentItem[]> {
+    const query = ref ? `?ref=${encodeURIComponent(ref)}` : '';
+    const response = await this.githubFetch(
+      token,
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+        repo
+      )}/contents/${encodeContentPath(dirPath)}${query}`,
+      { method: 'GET' }
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? (data as GitHubContentItem[]) : [];
+  }
+
+  private async deleteFileOnBranch(
+    token: string,
+    owner: string,
+    repo: string,
+    filePath: string,
+    sha: string,
+    branchName: string,
+    commitMessage: string
+  ): Promise<void> {
+    const response = await this.githubFetch(
+      token,
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+        repo
+      )}/contents/${encodeContentPath(filePath)}`,
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: commitMessage, sha, branch: branchName })
+      }
+    );
+
+    // Silently ignore 404 (already gone) but swallow other errors to avoid
+    // breaking the main PR flow.
+    void response;
+  }
+
   private async findOpenPullRequest(
     token: string,
     upstream: GitHubRepositoryRef,
@@ -446,6 +563,46 @@ export class GitHubPullRequestClient implements PullRequestClient {
     );
   }
 
+  /**
+   * Fetch the decoded text content and blob SHA of a file from GitHub.
+   * Returns `null` if the file does not exist (404).
+   */
+  async fetchFileContents(
+    owner: string,
+    repo: string,
+    filePath: string,
+    ref?: string
+  ): Promise<{ content: string; sha: string } | null> {
+    const token = await resolveToken(this.auth);
+    const query = ref ? `?ref=${encodeURIComponent(ref)}` : '';
+    const response = await this.githubFetch(
+      token,
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+        repo
+      )}/contents/${encodeContentPath(filePath)}${query}`,
+      { method: 'GET' }
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      const body = await this.readErrorBody(response);
+      throw new Error(`Failed to fetch file ${filePath}: HTTP ${response.status} ${body}`);
+    }
+
+    const json = (await response.json()) as GitHubFileContentResponse;
+    const sha = json.sha;
+    const encodedContent = json.content;
+
+    if (!sha || !encodedContent || json.encoding !== 'base64') {
+      return null;
+    }
+
+    return { content: base64ToString(encodedContent), sha };
+  }
+
   async createOrUpdatePullRequest(
     request: GitHubFileChangeRequest
   ): Promise<GitHubPullRequestResult> {
@@ -494,7 +651,7 @@ export class GitHubPullRequestClient implements PullRequestClient {
       targetOwner,
       request.upstream.repo,
       baseSha,
-      request.branchPrefix
+      { branchName: request.branchName, branchPrefix: request.branchPrefix }
     );
 
     const contentBase64 = encodeContent(
@@ -511,6 +668,34 @@ export class GitHubPullRequestClient implements PullRequestClient {
       contentBase64,
       request.commitMessage
     );
+
+    if (request.deleteOtherExtensions) {
+      const lastSlash = request.filePath.lastIndexOf('/');
+      const dir = lastSlash >= 0 ? request.filePath.slice(0, lastSlash) : '.';
+      const filename = lastSlash >= 0 ? request.filePath.slice(lastSlash + 1) : request.filePath;
+      const dotIndex = filename.lastIndexOf('.');
+
+      if (dotIndex > 0) {
+        const slugPrefix = filename.slice(0, dotIndex);
+        const currentExt = filename.slice(dotIndex + 1).toLowerCase();
+        const items = await this.listDirectory(
+          token, targetOwner, request.upstream.repo, dir, branchName
+        );
+
+        for (const item of items) {
+          if (item.type !== 'file') continue;
+          if (!item.name.startsWith(`${slugPrefix}.`)) continue;
+          const itemExt = item.name.slice(slugPrefix.length + 1).toLowerCase();
+          if (itemExt === currentExt) continue;
+
+          await this.deleteFileOnBranch(
+            token, targetOwner, request.upstream.repo,
+            item.path, item.sha, branchName,
+            `chore: remove ${item.name} (replaced by ${filename})`
+          );
+        }
+      }
+    }
 
     const headRef = `${targetOwner}:${branchName}`;
     const pullRequest = await this.createPullRequest(

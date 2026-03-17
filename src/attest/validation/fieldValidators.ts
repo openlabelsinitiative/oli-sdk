@@ -1,6 +1,7 @@
 import { CHAINS } from '../core/chains';
 import { VALID_CATEGORY_IDS } from '../core/categories';
 import { isValidEvmAddress as isValidChecksumOrHexEvmAddress } from '../core/address';
+import type { UsageCategoryRegistry } from '../types';
 
 const VALID_PAYMASTER_CATEGORIES = ['verifying', 'token', 'verifying_and_token'];
 
@@ -109,11 +110,19 @@ export function validateChain(value: string): string | null {
   return null;
 }
 
-export function validateCategory(value: string): string | null {
+/**
+ * Return `null` when `value` is a valid `usage_category`, or an error message when invalid.
+ *
+ * When `registry` is provided (built with `createUsageCategoryRegistry()`), validation is
+ * scoped to `registry.allowedIds` instead of the SDK's static built-in list.
+ *
+ * @param value    - The `usage_category` string to validate.
+ * @param registry - Optional registry to scope validation.
+ */
+export function validateCategory(value: string, registry?: UsageCategoryRegistry): string | null {
   if (!value) return null;
-  return VALID_CATEGORY_IDS.includes(value)
-    ? null
-    : `Invalid category: "${value}". Please select from available categories.`;
+  const isValid = registry ? registry.allowedIds.has(value) : VALID_CATEGORY_IDS.includes(value);
+  return isValid ? null : `Invalid category: "${value}". Please select from available categories.`;
 }
 
 export function validatePaymasterCategory(value: string): string | null {
