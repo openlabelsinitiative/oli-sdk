@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-03-17
+
+### Fixed
+- **`DEFAULT_USAGE_CATEGORY_SOURCE`** updated to the correct OLI path: `1_label_schema/tags/valuesets/usage_category.yml` (was `1_tag_definitions/values/usage_category.yml`).
+- **`fetchUsageCategories` YAML parser** now reads `category_id` as the primary field (with `tag_id` → `id` as fallbacks) to match the actual OLI YAML schema.
+
 ## [0.2.1] - 2026-03-17
 
 ### Added
@@ -107,7 +113,8 @@ This is the first release of the refreshed `@openlabels/oli-sdk` package and ser
 - Documentation disclaimer describing how the public label pool, `getBestLabelForAddress`, and `getValidLabelsForAddress` should be treated until the upcoming trust algorithms land.
 
 
-[Unreleased]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/openlabelsinitiative/oli-sdk/compare/v0.1.0...v0.1.1

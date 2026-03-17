@@ -8,7 +8,7 @@ import { levenshteinDistance } from './levenshtein';
  * Points to the canonical `usage_category.yml` in the OLI GitHub repository.
  */
 export const DEFAULT_USAGE_CATEGORY_SOURCE =
-  'https://raw.githubusercontent.com/openlabelsinitiative/OLI/main/1_tag_definitions/values/usage_category.yml';
+  'https://raw.githubusercontent.com/openlabelsinitiative/OLI/refs/heads/main/1_label_schema/tags/valuesets/usage_category.yml';
 
 // Simple module-level TTL cache keyed by source URL
 type CacheEntry = { records: UsageCategoryRecord[]; expiresAt: number };
@@ -33,8 +33,8 @@ function parseOliCategoryYaml(text: string): UsageCategoryRecord[] {
   return items
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
     .map((item) => ({
-      id: String(item.tag_id ?? item.id ?? '').trim(),
-      name: String(item.name ?? item.tag_id ?? item.id ?? '').trim(),
+      id: String(item.category_id ?? item.tag_id ?? item.id ?? '').trim(),
+      name: String(item.name ?? item.category_id ?? item.tag_id ?? item.id ?? '').trim(),
       description: item.description ? String(item.description).trim() : undefined
     }))
     .filter((r) => r.id.length > 0);
