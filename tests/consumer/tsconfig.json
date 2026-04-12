@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "react",
+    "paths": {
+      "@openlabels/oli-sdk": ["../../dist/index.d.ts"],
+      "@openlabels/oli-sdk/attest": ["../../dist/attest.entry.d.ts"],
+      "@openlabels/oli-sdk/attest-ui": ["../../dist/attest-ui.entry.d.ts"],
+      "@openlabels/oli-sdk/projects": ["../../dist/projects.entry.d.ts"],
+      "@openlabels/oli-sdk/contributions": ["../../dist/contributions.entry.d.ts"],
+      "@openlabels/oli-sdk/validation": ["../../dist/validation.entry.d.ts"],
+      "@openlabels/oli-sdk/chains": ["../../dist/chains.entry.d.ts"]
+    }
+  },
+  "include": ["type-check.ts"]
+}

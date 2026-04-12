@@ -13,8 +13,36 @@ export { OLIClient } from './client';
 // Sub-modules
 export { DataFetcher } from './fetcher';
 export { RestClient } from './rest';
+export { AttestClient } from './attest';
 export { createProxyHandler } from './proxy';
 export type { ProxyHandlerOptions } from './proxy';
+export {
+  PROJECTS_URL,
+  fetchProjects,
+  resolveProjectsList,
+  resetProjectsCache,
+  isProjectFieldSimilar,
+  findSimilarProjectMatches,
+  findSimilarProjects,
+  getSmartProjectSuggestions,
+  getProjectValidation,
+  validateProjectId
+} from './projects';
+export {
+  applyProjectPatchToPayload,
+  buildProjectPayloadFromDraft,
+  createGitHubPullRequestClient,
+  DEFAULT_CONTRIBUTION_REPOSITORIES,
+  ensureProjectFilePath,
+  GitHubPullRequestClient,
+  inferLogoExtension,
+  normalizeProjectSlug,
+  parseProjectYaml,
+  reorderProjectPayload,
+  serializeProjectYaml,
+  submitProjectContribution,
+  validateProjectPayload
+} from './contributions';
 
 // Types - Common
 export type {
@@ -88,6 +116,48 @@ export type {
 // Helper utilities
 export * as helpers from './helpers';
 export type { LabelSummary } from './helpers';
+
+// Attest (write) APIs
+export {
+  createDynamicWalletAdapter,
+  simpleProfile,
+  advancedProfile
+} from './attest';
+export type {
+  AttestationFieldValue,
+  AttestationRowInput,
+  ProjectRecord,
+  AttestationMode,
+  AttestationModeProfile,
+  AttestationModeProfileName,
+  ValidationOptions as AttestValidationOptions,
+  PrepareSingleOptions,
+  ParseCsvOptions,
+  AttestationDiagnostic,
+  AttestationDiagnostics,
+  CsvParseResult,
+  SingleValidationResult,
+  BulkValidationResult,
+  AttestationNetworkConfig,
+  PreparedAttestation,
+  OnchainAttestationRequestData,
+  OnchainAttestationRequest,
+  OnchainSubmitContext,
+  OnchainTxResult,
+  OnchainWalletAdapter,
+  OnchainSubmitResult,
+  BulkOnchainSubmitResult
+} from './attest';
+export { AttestValidationError } from './attest';
+export { DIAGNOSTIC_CODES } from './attest/validation/diagnostics';
+export type { DiagnosticCode } from './attest/validation/diagnostics';
+
+export type {
+  ProjectSimilarityField,
+  ProjectSimilarityMatch,
+  ProjectValidationResult,
+  ResolveProjectsListOptions
+} from './projects';
 
 // Default export
 export { OLIClient as default } from './client';

@@ -1,36 +1,133 @@
-# OLI SDK (Read-Only)
+# OLI SDK
 
-> Type-safe TypeScript/JavaScript client for reading the Open Labels Initiative (OLI) public label pool over REST.
+> Type-safe TypeScript/JavaScript client for reading OLI address labels and submitting onchain attestations.
 
-This package focuses exclusively on **read** scenarios: fetching labels, analytics, and helper summaries. All write helpers have been removed so the surface area is small, predictable, and browser-friendly.
-
-## ✨ Highlights
-
-- **Single REST surface** – every helper tunnels through `/labels`, `/attestations`, `/trust-lists`, and `/analytics`, with optional caching and automatic retries.
-- **Dynamic schema loading** – tag definitions & value sets refresh from GitHub so you always validate against the latest standard.
-- **Zero write/dependency footprint** – no signer, node provider, or trust setup required; everything runs against the public REST API.
-- **Helper summaries** – built-in helpers provide display-ready summaries without shipping extra UI-specific code.
-- **Proxy helper** – drop-in middleware injects API keys for browser apps without exposing credentials.
-
-## ⚠️ Trust & Label Pool Disclaimer
-
-- The SDK reads from the **open OLI label pool** (currently mirrored through, OLI's Live REST API, public GitHub exports and the growthepie API for projects metadata). All records are community-generated and **should be considered untrusted data** until weighted by your own allow-lists. 
-- `oli.api.getBestLabelForAddress()` is intentionally simple: it removes revoked/expired labels, applies your optional filters, sorts by recency, and returns the first hit. There is **no attester weighting or trust scoring** yet.
-- `oli.api.getValidLabelsForAddress()` / `helpers.isLabelValid()` only check revocation + expiration. **“Valid” does not mean “verified” or “safe.”**
-- Trust algorithms (attester weighting, consensus scoring, label provenance checks) are **not implemented yet** but will be there soon as its development is almost complete. Keep humans-in-the-loop or apply your own policy layer before surfacing data to end users or triggering automated flows. See [`docs/TRUST.md`](docs/TRUST.md) for more context.
-
-
-
+## Install
 
 ```bash
 npm install @openlabels/oli-sdk
-# or
-yarn add @openlabels/oli-sdk
 ```
 
-## ⚙️ Configuring the Client
+## Modules
 
-```typescript
+| Subpath | Description |
+|---------|-------------|
+| `@openlabels/oli-sdk` | `OLIClient`, read APIs (`oli.api.*`), helpers, proxy middleware |
+| `@openlabels/oli-sdk/attest` | `AttestClient`, `createDynamicWalletAdapter`, write profiles |
+| `@openlabels/oli-sdk/attest-ui` | React hooks and unstyled components for attestation UIs |
+| `@openlabels/oli-sdk/projects` | Project lookup, typo suggestions, and similarity matching |
+| `@openlabels/oli-sdk/contributions` | GitHub PR automation for OSS Directory project onboarding |
+| `@openlabels/oli-sdk/react` | Re-export of `attest-ui` for React-centric import paths |
+
+## Getting an API Key
+
+To use protected endpoints in the SDK, you need an API key.
+
+1. Go to the [Open Labels developer portal](https://www.openlabelsinitiative.org/developer) and click **Sign in**.
+2. Approve the short GitHub OAuth authorization.
+3. Complete the registration form with your contact email, project name, and intended use. This usually takes less than a minute.
+4. After submitting, your API key is generated instantly and displayed in the portal (shown only once).
+5. Store it securely in your secrets manager or `.env` file (e.g. `OLI_API_KEY=...`), then provide it to the SDK via `api.apiKey` or use the proxy helper for browser apps.
+
+> Need full API endpoint documentation? See the [OLI API Reference](https://www.openlabelsinitiative.org/docs?section=api-reference).
+
+## Trust & Label Pool Disclaimer
+
+- The SDK reads from the **open OLI label pool** (mirrored through the OLI Live REST API, public GitHub exports, and the growthepie API). All records are community-generated and **should be considered untrusted data** until weighted by your own allow-lists.
+- `oli.api.getBestLabelForAddress()` removes revoked/expired labels, applies optional filters, sorts by recency, and returns the first hit. There is **no attester weighting or trust scoring**.
+- `oli.api.getValidLabelsForAddress()` / `helpers.isLabelValid()` only check revocation and expiration. **"Valid" does not mean "verified" or "safe."**
+- Trust algorithms (attester weighting, consensus scoring, label provenance checks) are **not yet implemented**. Keep humans in the loop or apply your own policy layer before surfacing data to end users. See [`docs/TRUST.md`](docs/TRUST.md) for details.
+
+## Quick Start — Read APIs
+
+### Display name for an address
+
+```ts
+const name = await oli.api.getDisplayName('0x1234...');
+console.log(name); // "Uniswap Router" (or fallback short address)
+```
+
+### UI-ready address summary
+
+```ts
+const summary = await oli.api.getAddressSummary('0x1234...', { limit: 50 });
+
+if (!summary) {
+  console.log('No labels yet');
+} else {
+  console.log(summary.displayName, summary.primaryCategory, summary.latestActivity);
+}
+```
+
+### Bulk labels and search
+
+```ts
+const bulk = await oli.api.getLabelsBulk({
+  addresses: ['0x1234...', '0xABCD...'],
+  limit_per_address: 10
+});
+
+const paymasters = await oli.api.searchAddressesByTag({
+  tag_id: 'is_paymaster',
+  tag_value: 'true',
+  limit: 20
+});
+```
+
+### Latest attestations
+
+```ts
+const feed = await oli.api.getLatestAttestations({ limit: 25 });
+feed.forEach(att => {
+  console.log(att.recipient, att.contract_name, att.timeCreated);
+});
+```
+
+## Quick Start — Attest (Write)
+
+### Single form flow
+
+```ts
+import { OLIClient } from '@openlabels/oli-sdk';
+import { createDynamicWalletAdapter } from '@openlabels/oli-sdk/attest';
+
+const oli = new OLIClient({ api: { apiKey: process.env.OLI_API_KEY! } });
+await oli.init();
+
+const adapter = createDynamicWalletAdapter(primaryWallet, {
+  paymasterUrl: process.env.NEXT_PUBLIC_COINBASE_PAYMASTER_URL
+});
+
+const input = {
+  chain_id: 'eip155:8453',
+  address: '0x1234567890123456789012345678901234567890',
+  usage_category: 'dex',
+  owner_project: 'uniswap'
+};
+
+const prepared = await oli.attest.prepareSingleAttestation(input, { mode: 'simpleProfile' });
+const result = await oli.attest.submitSingleOnchain(prepared, adapter);
+console.log(result.status, result.txHash, result.sponsored);
+```
+
+### Bulk CSV flow
+
+```ts
+const parsed = await oli.attest.parseCsv(csvText);
+const validation = await oli.attest.validateBulk(parsed.rows, { mode: 'advancedProfile' });
+
+if (validation.diagnostics.errors.length > 0) {
+  console.log('Fix errors before submitting:', validation.diagnostics.errors);
+  return;
+}
+
+const result = await oli.attest.submitBulkOnchain(validation.validRows, adapter);
+console.log(result.status, result.uids);
+```
+
+## Client Configuration
+
+```ts
 import { OLIClient } from '@openlabels/oli-sdk';
 
 const oli = new OLIClient({
@@ -49,7 +146,7 @@ const oli = new OLIClient({
   }
 });
 
-await oli.init(); // pulls latest tag definitions & value sets
+await oli.init(); // pulls latest tag definitions and value sets
 ```
 
 ### Notable configuration fields
@@ -57,88 +154,17 @@ await oli.init(); // pulls latest tag definitions & value sets
 | Path | Description |
 |------|-------------|
 | `api.apiKey` | Required for protected endpoints (`/labels`, `/addresses/search`, `/analytics`). |
-| `filters.allowedCategories / excludedCategories / allowedProjects` | Include/exclude categories or projects globally. |
-| `filters.minAge / maxAge` | Filter labels by age (seconds). |
-| `display.nameFields / addressFormat / dateFormat` | Customize formatting defaults for helper outputs. |
+| `filters.allowedCategories` / `excludedCategories` / `allowedProjects` | Include or exclude categories/projects globally. |
+| `filters.minAge` / `maxAge` | Filter labels by age in seconds. |
+| `display.nameFields` / `addressFormat` / `dateFormat` | Customize formatting defaults for helper outputs. |
 
-## 🔐 Getting an API Key
+## Proxy Helper
 
-To use protected endpoints in the SDK, you'll need an API key.
+Use `createProxyHandler` in a Next.js API route to forward browser requests to the OLI API while keeping your API key server-side.
 
-1. Go to the [Open Labels developer portal](https://www.openlabelsinitiative.org/developer) and click **Sign in**.
-2. Approve the short GitHub OAuth authorization.
-3. Complete the registration form with your contact email, project name, and intended use—this quick step helps prevent spam and usually takes less than a minute.
-4. After submitting, your API key will be generated instantly (displayed in the portal, ONLY ONCE).
-5. Safely store your API key in your secrets manager or in a `.env` file (e.g., `OLI_API_KEY=...`). Then, provide it to the SDK via `api.apiKey` or use the proxy helper for browser apps.
-
-> **Need full API endpoint documentation or want to explore more details?**  
-> Check out the API reference at [OLI's API Reference](https://www.openlabelsinitiative.org/docs?section=api-reference).
-
-## 🚀 Quick Start
-
-### 1. Display name for an address
-
-```typescript
-const name = await oli.api.getDisplayName('0x1234...');
-console.log(name); // "Uniswap Router" (or fallback short address)
-```
-
-### 2. UI-ready summary
-
-```typescript
-const summary = await oli.api.getAddressSummary('0x1234...', {
-  limit: 50
-});
-
-if (!summary) {
-  console.log('No labels yet');
-} else {
-  console.log(summary.displayName, summary.primaryCategory, summary.latestActivity);
-}
-```
-
-### 3. Bulk labels + search
-
-```typescript
-const bulk = await oli.api.getLabelsBulk({
-  addresses: ['0x1234...', '0xABCD...'],
-  limit_per_address: 10
-});
-
-const paymasters = await oli.api.searchAddressesByTag({
-  tag_id: 'is_paymaster',
-  tag_value: 'true',
-  limit: 20
-});
-```
-
-### 4. Latest attestations
-
-```typescript
-const feed = await oli.api.getLatestAttestations({ limit: 25 });
-feed.forEach(att => {
-  console.log(att.recipient, att.contract_name, att.timeCreated);
-});
-```
-
-## 📚 Helper Overview
-
-| Helper | Purpose |
-|--------|---------|
-| `oli.api.getLabels`, `getLabelsBulk`, `getAttestations`, `getAttestationsExpanded` | Raw REST payloads (requires API key for `/labels`). |
-| `oli.api.getDisplayName`, `getAddressSummary`, `getBestLabelForAddress`, `getValidLabelsForAddress` | Higher-level helpers with filtering, ranking, and formatting baked in. |
-| `oli.api.getLatestAttestations`, `searchAttestations`, `getAttesterLeaderboard`, `getAttesterAnalytics`, `getTagBreakdown` | Feed + analytics helpers for dashboards. |
-| `helpers.*` | Pure utility helpers (formatting, ranking, REST response expansion) that power the `oli.api` methods. |
-| `oli.fetcher.getOLITags`, `getOLIValueSets`, `getFullRawExport` | Access raw schema/value-set data and the open label pool exports. |
-| `createProxyHandler` | Express/Next.js middleware that forwards requests to the OLI API while injecting `x-api-key`. |
-
-> `getBestLabelForAddress` ranks by validity + recency only, and `getValidLabelsForAddress` simply filters revoked/expired labels. Neither helper performs attester trust weighting—plan to layer your own review logic until the official trust algorithms ship.
-
-## 🌐 Proxy Example
-
-```typescript
-// /pages/api/oli/[...path].ts (Next.js API route)
-import { createProxyHandler } from '@openlabels/oli-sdk/proxy';
+```ts
+// pages/api/oli/[...path].ts
+import { createProxyHandler } from '@openlabels/oli-sdk';
 
 export default createProxyHandler({
   apiKey: process.env.OLI_API_KEY!,
@@ -146,16 +172,42 @@ export default createProxyHandler({
 });
 ```
 
-## 🧪 Development
+## Helper Overview
+
+| Helper | Purpose |
+|--------|---------|
+| `oli.api.getLabels`, `getLabelsBulk`, `getAttestations`, `getAttestationsExpanded` | Raw REST payloads. Requires API key for `/labels`. |
+| `oli.api.getDisplayName`, `getAddressSummary`, `getBestLabelForAddress`, `getValidLabelsForAddress` | Higher-level helpers with filtering, ranking, and formatting. |
+| `oli.api.getLatestAttestations`, `searchAttestations`, `getAttesterLeaderboard`, `getAttesterAnalytics`, `getTagBreakdown` | Feed and analytics helpers for dashboards. |
+| `helpers.*` | Pure utility helpers (formatting, ranking, REST response expansion) that power `oli.api` methods. |
+| `oli.fetcher.getOLITags`, `getOLIValueSets`, `getFullRawExport` | Access raw schema/value-set data and open label pool exports. |
+| `createProxyHandler` | Express/Next.js middleware that forwards requests to the OLI API while injecting `x-api-key`. |
+
+## Documentation
+
+| File | Description |
+|------|-------------|
+| [`docs/index.md`](docs/index.md) | Documentation landing page and navigation guide |
+| [`docs/ATTEST_QUICKSTART.md`](docs/ATTEST_QUICKSTART.md) | End-to-end attestation walkthrough (single + bulk) |
+| [`docs/ATTEST_API.md`](docs/ATTEST_API.md) | Full `oli.attest.*` method reference and type shapes |
+| [`docs/ATTEST_DYNAMIC_WALLET.md`](docs/ATTEST_DYNAMIC_WALLET.md) | Dynamic wallet adapter setup and sponsorship behavior |
+| [`docs/ATTEST_ENV.md`](docs/ATTEST_ENV.md) | All environment variables with a complete `.env` template |
+| [`docs/ATTEST_UI_COMPONENTS.md`](docs/ATTEST_UI_COMPONENTS.md) | React hooks and unstyled component integration |
+| [`docs/PROJECTS_MODULE.md`](docs/PROJECTS_MODULE.md) | Project lookup, validation, and similarity matching |
+| [`docs/CONTRIBUTIONS_MODULE.md`](docs/CONTRIBUTIONS_MODULE.md) | GitHub PR automation for OSS Directory contributions |
+| [`docs/ATTEST_MIGRATION.md`](docs/ATTEST_MIGRATION.md) | Migrating custom frontend logic to `oli.attest.*` |
+| [`docs/TRUST.md`](docs/TRUST.md) | Trust model, data provenance, and label pool disclaimer |
+
+## Development
 
 ```bash
-npm run lint    # eslint flat config
-npm run build   # bundle to dist/
-npm test        # integration tests (uses tsx)
+npm run lint    # ESLint flat config
+npm run build   # Bundle to dist/
+npm test        # Integration tests (uses tsx)
 ```
 
-> Tests spin up local listeners. If you run them in a restricted environment, you may need to grant permission for IPC sockets.
+> Tests spin up local listeners. In restricted environments you may need to grant permission for IPC sockets.
 
-## 📝 License
+## License
 
 MIT © Open Labels Initiative

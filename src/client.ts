@@ -9,6 +9,7 @@ import type { TagDefinitions, ValueSets } from './types/tags';
 import type { IOLIClient } from './types/client';
 import * as helpers from './helpers';
 import { RestClient } from './rest';
+import { AttestClient } from './attest';
 
 /**
  * Main OLI SDK Client
@@ -55,6 +56,7 @@ export class OLIClient<TCustomTags extends Record<string, unknown> = Record<stri
   /** REST client instance (primary API surface) */
   public readonly api: RestClient<TCustomTags>;
   public readonly rest: RestClient<TCustomTags>;
+  public readonly attest: AttestClient;
   
   /** Initialization state */
   private initialized: boolean = false;
@@ -86,6 +88,7 @@ export class OLIClient<TCustomTags extends Record<string, unknown> = Record<stri
     this.fetcher = new DataFetcher(this);
     this.api = new RestClient<TCustomTags>(this);
     this.rest = this.api;
+    this.attest = new AttestClient();
   }
 
   /**

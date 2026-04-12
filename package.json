@@ -1,6 +1,6 @@
 {
   "name": "@openlabels/oli-sdk",
-  "version": "0.1.2",
+  "version": "0.2.4",
   "description": "TypeScript/JavaScript SDK for querying Open Labels Initiative (OLI) address labels on-chain and off-chain",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -10,16 +10,55 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./attest": {
+      "types": "./dist/attest.entry.d.ts",
+      "import": "./dist/attest.entry.mjs",
+      "require": "./dist/attest.entry.js"
+    },
+    "./projects": {
+      "types": "./dist/projects.entry.d.ts",
+      "import": "./dist/projects.entry.mjs",
+      "require": "./dist/projects.entry.js"
+    },
+    "./attest-ui": {
+      "types": "./dist/attest-ui.entry.d.ts",
+      "import": "./dist/attest-ui.entry.mjs",
+      "require": "./dist/attest-ui.entry.js"
+    },
+    "./contributions": {
+      "types": "./dist/contributions.entry.d.ts",
+      "import": "./dist/contributions.entry.mjs",
+      "require": "./dist/contributions.entry.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.mjs",
+      "require": "./dist/react.js"
+    },
+    "./validation": {
+      "types": "./dist/validation.entry.d.ts",
+      "import": "./dist/validation.entry.mjs",
+      "require": "./dist/validation.entry.js"
+    },
+    "./chains": {
+      "types": "./dist/chains.entry.d.ts",
+      "import": "./dist/chains.entry.mjs",
+      "require": "./dist/chains.entry.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "test": "tsx tests/live-address.test.ts",
+    "test": "tsx --test tests/**/*.test.ts",
+    "test:dynamic": "tsx --test tests/attest.dynamic-e2e.test.ts",
+    "test:live": "tsx tests/live-address.test.ts",
+    "test:types": "tsc --noEmit -p tests/consumer/tsconfig.json",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -57,8 +96,18 @@
     "typescript-eslint": "^8.47.0"
   },
   "dependencies": {
+    "js-sha3": "^0.9.3",
     "js-yaml": "^4.1.0",
+    "viem": "^2.46.2",
     "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=16.0.0"

@@ -124,6 +124,30 @@ Feel free to:
 - Join our community channels
 - Reach out to maintainers
 
+## Commit Messages
+
+All pull requests must use **Conventional Commits** format:
+
+```
+<type>(<scope>): <short summary>
+```
+
+Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`
+
+Examples:
+```
+feat(attest): add validateAddressForChain to /validation subpath
+fix(uiHooks): correct isRunning flag reset after validation error
+docs(contributing): add Conventional Commits guidance
+```
+
+Breaking changes must include a `BREAKING CHANGE:` footer or a `!` after the type:
+```
+feat(attest-ui)!: restructure hook return shape into namespaced sub-objects
+```
+
+The `CHANGELOG.md` is maintained manually — update the `[Unreleased]` section as part of your PR.
+
 ## Releases
 
 Publishing steps live in [`docs/RELEASING.md`](docs/RELEASING.md). Follow that checklist whenever you cut a new version (including deprecating `0.1.1` in favour of the refreshed `0.1.0` baseline).
