@@ -1,7 +1,7 @@
-import { CHAINS } from '../core/chains';
+import { EIP155_CHAIN_ID_PATTERN, resolveChainRegistry } from '../core/chainRegistry';
 import { VALID_CATEGORY_IDS } from '../core/categories';
 import { isValidEvmAddress as isValidChecksumOrHexEvmAddress } from '../core/address';
-import type { UsageCategoryRegistry } from '../types';
+import type { ChainRegistry, UsageCategoryRegistry } from '../types';
 
 const VALID_PAYMASTER_CATEGORIES = ['verifying', 'token', 'verifying_and_token'];
 
@@ -97,12 +97,24 @@ export function validateBoolean(value: unknown): string | null {
   return normalized === '' || normalized === 'true' || normalized === 'false' ? null : 'Must be true or false';
 }
 
-export function validateChain(value: string): string | null {
+/**
+ * Return `null` when `value` is a valid chain ID, or an error message when invalid.
+ *
+ * Any EVM chain (`eip155:<n>` or `eip155:any`) is valid, whether or not it is in
+ * the registry. Other namespaces (e.g. `starknet:SN_MAIN`) must be in the registry,
+ * in canonical form.
+ *
+ * @param value - CAIP-2 chain ID.
+ * @param registry - Optional registry; defaults to the built-in chain list.
+ */
+export function validateChain(value: string, registry?: ChainRegistry): string | null {
   if (!value || !value.trim()) {
     return 'Chain is required';
   }
 
-  const isValid = CHAINS.some((chain) => chain.caip2 === value);
+  const isValid =
+    EIP155_CHAIN_ID_PATTERN.test(value) ||
+    resolveChainRegistry(registry).byCaip2.get(value.toLowerCase())?.caip2 === value;
   if (!isValid) {
     return `Invalid chain: "${value}". Must be a valid CAIP-2 chain identifier.`;
   }

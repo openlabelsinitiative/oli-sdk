@@ -11,6 +11,10 @@
 export { CHAINS, CHAIN_OPTIONS, CHAIN_ALIASES } from './attest/core/chains';
 export type { ChainMetadata } from './attest/core/chains';
 
+// Host-supplied chain registry
+export { createChainRegistry, getChainOptions, isKnownChain } from './attest/core/chainRegistry';
+export type { ChainInput, ChainRegistry } from './attest/types';
+
 // Chain ID conversion/normalisation (from validation layer)
 export { convertChainId } from './attest/validation/chain';
 

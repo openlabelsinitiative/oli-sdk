@@ -22,6 +22,7 @@ import {
 import { resolveModeProfile } from './core/profiles';
 import { buildCaip10, parseCaip10 } from './core/caip';
 import { parseCsv as parseCsvValidation } from './validation/csv';
+import { validateChain } from './validation/fieldValidators';
 import { validateBulk as validateBulkRows, validateSingle as validateSingleRow } from './validation/validate';
 import { submitBulkOnchain as submitBulkTransport, submitSingleOnchain as submitSingleTransport } from './transport/submit';
 
@@ -118,7 +119,7 @@ export class AttestClient {
       const parsed = parseCaip10(suggestion);
       if (parsed) {
         nextRow.address = parsed.address;
-        if (parsed.isKnownChain) {
+        if (!validateChain(parsed.chainId)) {
           nextRow.chain_id = parsed.chainId;
         }
       }
@@ -141,7 +142,8 @@ export class AttestClient {
     const validation = await this.validateSingle(input, {
       mode,
       projects: options.projects,
-      fetchProjects: options.fetchProjects
+      fetchProjects: options.fetchProjects,
+      chainRegistry: options.chainRegistry
     });
 
     if (options.validate !== false && !validation.valid) {
@@ -167,7 +169,7 @@ export class AttestClient {
 
     const network = getAttestationNetworkConfig(networkId);
     const tags = prepareTags(row);
-    const caip10 = buildCaip10(chainId, address);
+    const caip10 = buildCaip10(chainId, address, options.chainRegistry);
     const encodedData = prepareEncodedData(chainId, address, tags);
     const recipient = options.recipient ?? this.options.defaultRecipient ?? FRONTEND_ATTESTATION_RECIPIENT;
 

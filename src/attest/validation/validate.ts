@@ -1,5 +1,6 @@
 import type {
   AttestationDiagnostics,
+  ChainRegistry,
   AttestationRowInput,
   BulkValidationResult,
   ProjectRecord,
@@ -10,6 +11,7 @@ import type {
 import { FORM_FIELDS, REQUIRED_FIELD_IDS } from '../core/formFields';
 import { resolveModeProfile } from '../core/profiles';
 import { parseCaip10 } from '../core/caip';
+import { isKnownChain } from '../core/chainRegistry';
 import { createDiagnostics, addConversion, addError, addSuggestion, addWarning, mergeDiagnostics } from './diagnostics';
 import {
   validateAddress,
@@ -97,17 +99,23 @@ function normalizeFieldValue(fieldId: string, value: unknown): string {
   return normalized;
 }
 
-function applyCaipNormalization(row: AttestationRowInput, diagnostics: AttestationDiagnostics, rowIndex?: number): void {
+function applyCaipNormalization(
+  row: AttestationRowInput,
+  diagnostics: AttestationDiagnostics,
+  rowIndex?: number,
+  chainRegistry?: ChainRegistry
+): void {
   const addressValue = typeof row.address === 'string' ? row.address : '';
-  const parsed = parseCaip10(addressValue);
+  const parsed = parseCaip10(addressValue, chainRegistry);
   if (!parsed) {
     return;
   }
 
   const previousChain = typeof row.chain_id === 'string' ? row.chain_id : '';
   row.address = parsed.address;
+  const isValidChain = !validateChain(parsed.chainId, chainRegistry);
 
-  if (parsed.isKnownChain && !previousChain) {
+  if (isValidChain && !previousChain) {
     row.chain_id = parsed.chainId;
     addConversion(diagnostics, 'CAIP_CHAIN_INFERRED', `Chain ID set from CAIP-10 address: ${parsed.chainId}`, {
       row: rowIndex,
@@ -116,7 +124,7 @@ function applyCaipNormalization(row: AttestationRowInput, diagnostics: Attestati
     return;
   }
 
-  if (parsed.isKnownChain && previousChain && previousChain !== parsed.chainId) {
+  if (isValidChain && previousChain && previousChain !== parsed.chainId) {
     addError(
       diagnostics,
       'CAIP_CHAIN_MISMATCH',
@@ -284,7 +292,8 @@ function validateFieldValue(
   row: AttestationRowInput,
   fieldId: string,
   diagnostics: AttestationDiagnostics,
-  rowIndex?: number
+  rowIndex?: number,
+  chainRegistry?: ChainRegistry
 ): void {
   const value = row[fieldId];
   if (isEmptyValue(value)) {
@@ -294,9 +303,16 @@ function validateFieldValue(
   const normalized = normalizeFieldValue(fieldId, value);
 
   if (fieldId === 'chain_id') {
-    const chainError = validateChain(normalized);
+    const chainError = validateChain(normalized, chainRegistry);
     if (chainError) {
       addError(diagnostics, 'CHAIN_INVALID', chainError, { row: rowIndex, field: fieldId });
+    } else if (normalized !== 'eip155:any' && !isKnownChain(normalized, chainRegistry)) {
+      addWarning(
+        diagnostics,
+        'CHAIN_UNRECOGNIZED',
+        `Chain "${normalized}" is not in the known chain list. Check that the chain ID is correct.`,
+        { row: rowIndex, field: fieldId }
+      );
     }
     return;
   }
@@ -358,12 +374,13 @@ async function validateRow(
     allowedFields: Set<string> | null;
     rowIndex?: number;
     registry?: UsageCategoryRegistry;
+    chainRegistry?: ChainRegistry;
   }
 ): Promise<AttestationRowInput> {
   const row = sanitizeRowByAllowedFields(cloneRow(rowInput), options.allowedFields);
-  const { mode, projects, rowIndex, registry } = options;
+  const { mode, projects, rowIndex, registry, chainRegistry } = options;
 
-  applyCaipNormalization(row, diagnostics, rowIndex);
+  applyCaipNormalization(row, diagnostics, rowIndex, chainRegistry);
 
   Object.entries(row).forEach(([fieldId, value]) => {
     if (isEmptyValue(value)) {
@@ -391,7 +408,7 @@ async function validateRow(
   });
 
   Object.keys(row).forEach((fieldId) => {
-    validateFieldValue(row, fieldId, diagnostics, rowIndex);
+    validateFieldValue(row, fieldId, diagnostics, rowIndex, chainRegistry);
   });
 
   await validateProject(row, diagnostics, projects, rowIndex);
@@ -411,7 +428,8 @@ export async function validateSingle(input: AttestationRowInput, options: Valida
     mode,
     projects,
     allowedFields,
-    registry: options.usageCategoryRegistry
+    registry: options.usageCategoryRegistry,
+    chainRegistry: options.chainRegistry
   });
 
   return {
@@ -465,7 +483,8 @@ export async function validateBulk(rows: AttestationRowInput[], options: Validat
       projects,
       allowedFields,
       rowIndex: index,
-      registry
+      registry,
+      chainRegistry: options.chainRegistry
     });
 
     normalizedRows.push(normalizedRow);

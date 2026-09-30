@@ -2,12 +2,14 @@ import { useCallback, useMemo, useState } from 'react';
 import type { AttestClient } from '../api';
 import { FORM_FIELDS, REQUIRED_FIELD_IDS } from '../core/formFields';
 import { parseCaip10 } from '../core/caip';
+import { validateChain } from '../validation/fieldValidators';
 import type {
   AttestationDiagnostic,
   AttestationDiagnostics,
   AttestationFieldValue,
   AttestationModeProfileName,
   AttestationRowInput,
+  ChainRegistry,
   OnchainWalletAdapter,
   PreparedAttestation,
   ValidationOptions
@@ -356,12 +358,16 @@ function isPreparedRows(rows: AttestationRowInput[] | PreparedAttestation[]): ro
   return isPreparedAttestationRow(rows[0]);
 }
 
-function parseAddressInput(row: AttestationRowInput, value: AttestationFieldValue): AttestationRowInput {
+function parseAddressInput(
+  row: AttestationRowInput,
+  value: AttestationFieldValue,
+  chainRegistry?: ChainRegistry
+): AttestationRowInput {
   if (typeof value !== 'string') {
     return row;
   }
 
-  const parsedCaip10 = parseCaip10(value);
+  const parsedCaip10 = parseCaip10(value, chainRegistry);
   if (!parsedCaip10) {
     return row;
   }
@@ -371,7 +377,7 @@ function parseAddressInput(row: AttestationRowInput, value: AttestationFieldValu
     address: parsedCaip10.address
   };
 
-  if (parsedCaip10.isKnownChain) {
+  if (!validateChain(parsedCaip10.chainId, chainRegistry)) {
     next.chain_id = parsedCaip10.chainId;
   }
 
@@ -393,6 +399,7 @@ export function useSingleAttestUI(attest: AttestClient, options: SingleAttestUIO
   );
 
   const diagnostics = single.validation.result?.diagnostics ?? EMPTY_DIAGNOSTICS;
+  const chainRegistry = options.validationOptions?.chainRegistry;
 
   const setField = useCallback((field: string, value: AttestationFieldValue) => {
     setRow((current) => {
@@ -402,12 +409,12 @@ export function useSingleAttestUI(attest: AttestClient, options: SingleAttestUIO
       };
 
       if (field === 'address') {
-        return parseAddressInput(next, value);
+        return parseAddressInput(next, value, chainRegistry);
       }
 
       return next;
     });
-  }, []);
+  }, [chainRegistry]);
 
   const applySuggestion = useCallback(
     (field: string, suggestion: string) => {
@@ -449,12 +456,13 @@ export function useSingleAttestUI(attest: AttestClient, options: SingleAttestUIO
   const prepare = useCallback(
     async (overrideOptions: Omit<import('../types').PrepareSingleOptions, 'mode'> = {}) => {
       return attest.prepareSingleAttestation(row, {
+        chainRegistry,
         ...options.prepareOptions,
         ...overrideOptions,
         mode
       });
     },
-    [attest, row, options.prepareOptions, mode]
+    [attest, row, chainRegistry, options.prepareOptions, mode]
   );
 
   const submit = useCallback(
@@ -549,6 +557,7 @@ export function useBulkCsvAttestUI(attest: AttestClient, options: BulkCsvAttestU
   const [diagnosticsSnapshot, setDiagnosticsSnapshot] = useState<DiagnosticsSnapshot | null>(null);
 
   const bulk = useBulkCsvAttest(attest);
+  const chainRegistry = options.parseOptions?.chainRegistry ?? options.validationOptions?.chainRegistry;
   const rows = rowsState.length > 0 ? rowsState : [{}];
   const diagnostics = useMemo(() => remapDiagnosticsByRows(diagnosticsSnapshot, rows), [diagnosticsSnapshot, rows]);
 
@@ -578,13 +587,13 @@ export function useBulkCsvAttestUI(attest: AttestClient, options: BulkCsvAttestU
         };
 
         if (field === 'address') {
-          return parseAddressInput(next, value);
+          return parseAddressInput(next, value, chainRegistry);
         }
 
         return next;
       });
     });
-  }, [allowedFields]);
+  }, [allowedFields, chainRegistry]);
 
   const addRow = useCallback((nextRow: AttestationRowInput = {}) => {
     setRowsState((currentRows) => {

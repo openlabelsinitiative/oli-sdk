@@ -235,13 +235,41 @@ await oli.attest.validateSingle(row, { mode: advancedProfile });
 | Base | `8453` | Coinbase Smart Wallet sponsorship supported |
 | Arbitrum One | `42161` | Sponsorship not supported; regular tx only |
 
-The `chain_id` field accepts CAIP-10 format (`eip155:8453`) or plain chain IDs. The SDK normalizes both forms. The `attestation_network` field on `AttestationRowInput` overrides the resolved chain when set explicitly.
+These are the networks attestations are written to. The `attestation_network` field on `AttestationRowInput` overrides the resolved network when set explicitly. The chain being labelled (`chain_id`) is separate, see below.
+
+## Chain IDs
+
+`chain_id` is a CAIP-2 identifier, as defined by the OLI label schema.
+
+- **Any EVM chain is valid**: `eip155:<chain id>` and `eip155:any` pass validation whether or not the chain is in the SDK's list. A chain that isn't in the list gets a `CHAIN_UNRECOGNIZED` **warning** (not an error), so typos are still visible.
+- **Non-EVM chains** (e.g. `starknet:SN_MAIN`) must be in the chain registry.
+- **Conversion** (`convertChainId`, CSV `chain_id` column): plain numbers become `eip155:<n>`; names, ids and aliases (`"base"`, `"Robinhood Chain"`, `"arb"`) are looked up in the chain registry.
+
+By default the registry is the SDK's built-in `CHAINS` list. Host apps can supply their own chains so new chains work without an SDK release:
+
+```ts
+import { createChainRegistry, getChainOptions } from '@openlabels/oli-sdk/chains';
+
+const chainRegistry = createChainRegistry({
+  chains: [{ id: 'robinhood', name: 'Robinhood Chain', caip2: 'eip155:4663' }],
+  aliases: { rh: 'eip155:4663' }, // optional
+  includeBuiltIn: true            // default: merge with the SDK's CHAINS / CHAIN_ALIASES
+});
+
+await oli.attest.parseCsv(csvText, { chainRegistry });
+await oli.attest.validateBulk(rows, { chainRegistry });
+await oli.attest.prepareSingleAttestation(row, { chainRegistry });
+
+const options = getChainOptions(chainRegistry); // [{ value: 'eip155:4663', label: 'Robinhood Chain' }, ...]
+```
+
+Host chains override built-in entries with the same CAIP-2 ID. `useSingleAttestUI` and `useBulkCsvAttestUI` pick the registry up from `validationOptions.chainRegistry` (and `parseOptions.chainRegistry` for CSV).
 
 ## Guardrails
 
 - **Max 50 rows** per bulk submission call. Exceeding this throws before any submission is attempted.
 - **Required fields**: `chain_id` and `address` are always required. Additional required fields depend on the active mode profile.
-- **CAIP parsing**: `chain_id` values are parsed and normalized to CAIP-10 format. Aliases like `"base"` and `"1"` are resolved automatically.
+- **CAIP parsing**: `chain_id` values are normalized to CAIP-2 format. Aliases like `"base"` and `"1"` are resolved automatically; see [Chain IDs](#chain-ids).
 - **Category validation**: `usage_category` and `paymaster_category` are validated against the live OLI value sets fetched at `oli.init()` time.
 - **Project validation**: `owner_project` is validated against the OSS Directory project list. Typo suggestions are emitted for near-matches.
 
