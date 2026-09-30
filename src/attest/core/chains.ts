@@ -38,6 +38,7 @@ export const CHAINS: ChainMetadata[] = [
   { id: 'megaeth_testnet_v2', name: 'MegaETH Testnet v2', shortName: 'Timothy', caip2: 'eip155:6343' },
   { id: 'megaeth', name: 'MegaETH', shortName: 'MegaETH', caip2: 'eip155:4326' },
   { id: 'megaeth_testnet', name: 'MegaETH Testnet v1', shortName: 'Carrot', caip2: 'eip155:6342' },
+  { id: 'robinhood', name: 'Robinhood Chain', shortName: 'Robinhood', caip2: 'eip155:4663' },
   { id: 'any', name: 'Any EVM Chain', shortName: 'Any EVM Chain', caip2: 'eip155:any' }
 ];
 

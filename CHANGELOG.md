@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-09-30
+
+### Added
+- **Robinhood Chain** (`eip155:4663`) added to `CHAINS`, so it is accepted by `validateChain`, resolved by `convertChainId` (`robinhood`, `Robinhood Chain`, `4663`, `eip155:4663`), recognised by `normalizeChainId` / `parseCaip10`, and listed in `CHAIN_OPTIONS`.
+
 ## [0.2.3] - 2026-03-17
 
 ### Fixed
