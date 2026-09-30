@@ -120,6 +120,7 @@ export const DIAGNOSTIC_CODES = {
   PAYMASTER_INVALID: 'PAYMASTER_INVALID',
   PAYMASTER_SUGGESTIONS: 'PAYMASTER_SUGGESTIONS',
   CHAIN_INVALID: 'CHAIN_INVALID',
+  CHAIN_UNRECOGNIZED: 'CHAIN_UNRECOGNIZED',
   ADDRESS_INVALID: 'ADDRESS_INVALID',
   CONTRACT_NAME_INVALID: 'CONTRACT_NAME_INVALID',
   TX_HASH_INVALID: 'TX_HASH_INVALID',
@@ -224,6 +225,10 @@ Create this file:
 // Chain metadata
 export { CHAINS, CHAIN_OPTIONS, CHAIN_ALIASES } from './attest/core/chains';
 export type { ChainMetadata } from './attest/core/chains';
+
+// Host-supplied chain registry
+export { createChainRegistry, getChainOptions, isKnownChain } from './attest/core/chainRegistry';
+export type { ChainInput, ChainRegistry } from './attest/types';
 
 // Chain ID conversion/normalization (from validation layer)
 export { convertChainId } from './attest/validation/chain';

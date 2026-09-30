@@ -3,6 +3,7 @@ import { FORM_FIELDS, REQUIRED_FIELD_IDS } from '../core/formFields';
 import { VALID_CATEGORY_IDS } from '../core/categories';
 import { parseCaip10 } from '../core/caip';
 import { convertChainId } from './chain';
+import { validateChain } from './fieldValidators';
 import { convertCategoryAlias } from './category';
 import { getUsageCategorySuggestions } from './usageCategoryRegistry';
 import { convertPaymasterAlias, getSmartPaymasterSuggestions, VALID_PAYMASTER_CATEGORIES } from './paymaster';
@@ -240,7 +241,7 @@ export async function parseCsv(csvText: string, options: ParseCsvOptions = {}): 
       let value = cleanValue(rawValue, fieldId);
 
       if (fieldId === 'chain_id') {
-        const converted = convertChainId(value);
+        const converted = convertChainId(value, options.chainRegistry);
         if (value.trim() && converted !== value) {
           addConversion(diagnostics, 'CHAIN_NORMALIZED', `Chain ID converted: "${value}" -> ${converted || '(empty - invalid chain)'}`, {
             row: i,
@@ -274,12 +275,13 @@ export async function parseCsv(csvText: string, options: ParseCsvOptions = {}): 
       row[fieldId] = value;
     }
 
-    const parsedCaip10 = typeof row.address === 'string' ? parseCaip10(row.address) : null;
+    const parsedCaip10 = typeof row.address === 'string' ? parseCaip10(row.address, options.chainRegistry) : null;
     if (parsedCaip10) {
       const previousChain = typeof row.chain_id === 'string' ? row.chain_id : '';
       row.address = parsedCaip10.address;
+      const isValidChain = !validateChain(parsedCaip10.chainId, options.chainRegistry);
 
-      if (parsedCaip10.isKnownChain && !previousChain) {
+      if (isValidChain && !previousChain) {
         row.chain_id = parsedCaip10.chainId;
         addConversion(
           diagnostics,
@@ -287,7 +289,7 @@ export async function parseCsv(csvText: string, options: ParseCsvOptions = {}): 
           `Chain ID set from CAIP-10 address: ${parsedCaip10.chainId}`,
           { row: i, field: 'chain_id', metadata: { fromAddress: true } }
         );
-      } else if (parsedCaip10.isKnownChain && previousChain && previousChain !== parsedCaip10.chainId) {
+      } else if (isValidChain && previousChain && previousChain !== parsedCaip10.chainId) {
         addError(
           diagnostics,
           'CAIP_CHAIN_MISMATCH',

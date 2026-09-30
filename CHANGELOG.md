@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-30
+
+### Changed
+- **Chain validation no longer requires the chain to be in the SDK's list.** `validateChain` accepts any EVM chain (`eip155:<n>`, `eip155:any`), in line with the OLI label schema (`chain_id` is any CAIP-2 ID). Non-EVM chains (e.g. `starknet:SN_MAIN`) must still be in the chain registry. EVM chains that aren't in the registry now produce a `CHAIN_UNRECOGNIZED` **warning** instead of a `CHAIN_INVALID` error.
+- **`convertChainId`** maps any numeric ID to `eip155:<n>` (previously `''` for unlisted chains), and resolves known CAIP-2 IDs case-insensitively (e.g. `starknet:sn_main` → `starknet:SN_MAIN`, previously `''`).
+- **CAIP-10 addresses** (`eip155:<n>:0x…`) now set `chain_id` for any valid chain, not only listed ones.
+
+### Added
+- **`createChainRegistry({ chains?, aliases?, includeBuiltIn? })`** — build a `ChainRegistry` from host-supplied chains (e.g. growthepie's master.json), merged with the built-in `CHAINS` / `CHAIN_ALIASES` by default. Host chains override built-ins with the same CAIP-2 ID.
+- **`chainRegistry` option** on `ValidationOptions`, `ParseCsvOptions` and `PrepareSingleOptions`. `useSingleAttestUI` / `useBulkCsvAttestUI` read it from `validationOptions` / `parseOptions`.
+- **`getChainOptions(registry?)`** and **`isKnownChain(chainId, registry?)`** helpers.
+- Optional `registry` parameter on `validateChain`, `convertChainId`, `normalizeChainId`, `parseCaip10` and `buildCaip10`.
+- `DIAGNOSTIC_CODES.CHAIN_UNRECOGNIZED`.
+
+### Exports
+- `@openlabels/oli-sdk/chains` now exports: `createChainRegistry`, `getChainOptions`, `isKnownChain`, `ChainInput` (type), `ChainRegistry` (type).
+
 ## [0.2.5] - 2026-09-30
 
 ### Added

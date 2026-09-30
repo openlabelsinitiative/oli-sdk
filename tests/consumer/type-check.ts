@@ -63,12 +63,15 @@ import {
 } from '@openlabels/oli-sdk/validation';
 
 // ── /chains ───────────────────────────────────────────────────────────────────
-import type { ChainMetadata, Caip10Parts } from '@openlabels/oli-sdk/chains';
+import type { ChainMetadata, Caip10Parts, ChainInput, ChainRegistry } from '@openlabels/oli-sdk/chains';
 import {
   CHAINS,
   CHAIN_OPTIONS,
   CHAIN_ALIASES,
   convertChainId,
+  createChainRegistry,
+  getChainOptions,
+  isKnownChain,
   parseCaip10,
   buildCaip10,
   normalizeChainId,
@@ -120,12 +123,19 @@ const _caip10Parts: Caip10Parts | null = parseCaip10('eip155:8453:0x000000000000
 const _builtCaip10: string = buildCaip10('eip155:8453', '0x0000000000000000000000000000000000000000');
 const _normalised: string | null = normalizeChainId('eip155:8453');
 const _converted: string = convertChainId('base');
+const _chainInput: ChainInput = { caip2: 'eip155:4663', name: 'Robinhood Chain', id: 'robinhood' };
+const _chainRegistry: ChainRegistry = createChainRegistry({ chains: [_chainInput] });
+const _registryOptions: AttestValidationOptions = { chainRegistry: _chainRegistry };
+const _registryConverted: string = convertChainId('robinhood', _chainRegistry);
+const _chainOptions: Array<{ value: string; label: string }> = getChainOptions(_chainRegistry);
+const _isKnown: boolean = isKnownChain('eip155:4663', _chainRegistry);
 const _checksummed: string = toChecksumAddress('0x0000000000000000000000000000000000000000');
 const _categoryAlias: string = convertCategoryAlias('dex');
 const _validCategoryId: boolean = (VALID_CATEGORY_IDS as string[]).includes('dex');
 
 void _firstChain; void _caip10Parts; void _builtCaip10; void _normalised;
-void _converted; void _checksummed; void _categoryAlias; void _validCategoryId;
+void _converted; void _registryOptions; void _registryConverted; void _chainOptions; void _isKnown;
+void _checksummed; void _categoryAlias; void _validCategoryId;
 void _rootCode; void _validationCode;
 
 // Prevent "unused import" errors for side-effect-only imports.

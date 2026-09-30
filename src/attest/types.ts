@@ -1,3 +1,26 @@
+import type { ChainMetadata } from './core/chains';
+
+/** A chain supplied by the host app when building a `ChainRegistry`. */
+export interface ChainInput {
+  /** CAIP-2 chain ID, e.g. `'eip155:4663'`. */
+  caip2: string;
+  /** Display name, e.g. `'Robinhood Chain'`. */
+  name: string;
+  /** Lookup key, e.g. `'robinhood'`. Defaults to `caip2`. */
+  id?: string;
+  /** Short display name. Defaults to `name`. */
+  shortName?: string;
+}
+
+export interface ChainRegistry {
+  /** Chains in this registry: host chains first, then built-ins not overridden. */
+  chains: ChainMetadata[];
+  /** Lower-cased CAIP-2 ID → chain. */
+  byCaip2: Map<string, ChainMetadata>;
+  /** Lower-cased id / name / shortName / alias → canonical CAIP-2 ID. */
+  byName: Map<string, string>;
+}
+
 export interface UsageCategoryRecord {
   id: string;
   name: string;
@@ -57,6 +80,12 @@ export interface ValidationOptions {
    * Build one with `createUsageCategoryRegistry()` from `@openlabels/oli-sdk/chains`.
    */
   usageCategoryRegistry?: UsageCategoryRegistry;
+  /**
+   * Chains used to resolve chain names and to recognise chains (unrecognised EVM
+   * chains get a `CHAIN_UNRECOGNIZED` warning, not an error). Defaults to the
+   * SDK's built-in list. Build one with `createChainRegistry()` from `@openlabels/oli-sdk/chains`.
+   */
+  chainRegistry?: ChainRegistry;
 }
 
 export interface PrepareSingleOptions {
@@ -66,6 +95,8 @@ export interface PrepareSingleOptions {
   validate?: boolean;
   projects?: ProjectRecord[];
   fetchProjects?: () => Promise<ProjectRecord[]>;
+  /** Chain registry used during pre-encode validation. See `ValidationOptions.chainRegistry`. */
+  chainRegistry?: ChainRegistry;
 }
 
 export interface ParseCsvOptions {
@@ -75,6 +106,8 @@ export interface ParseCsvOptions {
   allowedFields?: string[];
   /** Registry used to scope `usage_category` validation within the CSV pipeline. */
   usageCategoryRegistry?: UsageCategoryRegistry;
+  /** Chain registry used to convert chain names/IDs in the `chain_id` column. */
+  chainRegistry?: ChainRegistry;
 }
 
 export interface AttestationDiagnostic {
